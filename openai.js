@@ -11,7 +11,7 @@ class OpenAIQuery {
     this.temperature = temperature;
     this.apiKey = process.env.OPENAI_API_KEY;
     this.configuration = new Configuration({
-      apiKey: this.apiKey
+      apiKey: this.apiKey,
     });
     this.openai = new OpenAIApi(this.configuration);
   }
@@ -26,12 +26,14 @@ class OpenAIQuery {
       });
 
       // TODO: output [model-name] ..... [tokens] [cost] information
-    
+
       const result = {
         response: response.data.choices[0].text.trim(),
         uploadedTokenCount: Math.ceil(prompt.length / 4), // Simplified estimation
-        generatedTokenCount: Math.ceil(response.data.choices[0].text.length / 4), // Simplified estimation
-        cost: this.calculateCost(response.data.usage.total_tokens)
+        generatedTokenCount: Math.ceil(
+          response.data.choices[0].text.length / 4
+        ), // Simplified estimation
+        cost: this.calculateCost(response.data.usage.total_tokens),
       };
 
       return result;
@@ -43,7 +45,7 @@ class OpenAIQuery {
 
   calculateCost(tokenCount) {
     // Example cost calculation: \$0.002 per token
-    return tokenCount * 0.002 / 1000;
+    return (tokenCount * 0.002) / 1000;
   }
 }
 
