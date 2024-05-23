@@ -25,11 +25,18 @@ async function resume() {
 
 async function improveDocs(resumes, ignores) {
   const markdownFiles = readdirSync(process.cwd()).filter(
-    (file) => file.endsWith('.md') && !ignoredPaths.has(file)
+    (file) => file.endsWith('.md') && !ignores.has(file)
   )
 
   // fixme: using GPT4, use maximum tokens
-  const openAI = new OpenAIQuery()
+  const openAI = new OpenAIQuery(
+    {
+      model: 'gpt-4o-2024-05-13',
+      max_tokens: 2048,
+      temperature: 0.7,
+    },
+    { host: '192.168.110.127', port: 7890 }
+  )
   const docs = '' // content of all docs
   // FIXME: if resumed, skip the already processed files
   const improvePrompts = markdownFiles.map((file) => {
@@ -92,7 +99,7 @@ async function genStructure(llm, docs, ignoredPaths) {
   }))
 
   const structurePrompt = `Given the following code files and their contents,
-    along with detailed documentation improvements: ${docs.join('\n\n')}
+    along with detailed documentation: ${docs.join('\n\n')}
   Files and contents:
   ${fileContents
     .map((f) => `File: ${f.path}\nContent:\n${f.content}`)
@@ -102,9 +109,10 @@ async function genStructure(llm, docs, ignoredPaths) {
   Output the results in JSON format, where keys are file paths and values are summaries.
   Add another key named 'summary-structure.md' whose value clarifies what changes were made and why.`
 
+  logger.info(structurePrompt)
   const structureResult = await llm.query(structurePrompt)
   const results = JSON.parse(structureResult.response)
-
+  return
   const outDir = path.join(process.cwd(), 'out', 'structure')
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true })
@@ -155,5 +163,7 @@ async function make() {
 
   // TODO: gen code file one by one by providing the docs, the pathes and contents
 }
+
+make().then(() => {})
 
 export { make }

@@ -1,52 +1,71 @@
-// openai.js
-import { Configuration, OpenAIApi } from "openai";
-import dotenv from "dotenv";
+import got from 'got'
+import { HttpsProxyAgent } from 'https-proxy-agent'
+import dotenv from 'dotenv'
+import { Logger } from './logger.js'
 
-dotenv.config();
+dotenv.config()
+
+const { http_proxy } = process.env
+const L = new Logger('openai')
 
 class OpenAIQuery {
-  constructor(model = "text-davinci-002", maxTokens = 2048, temperature = 0.7) {
-    this.model = model;
-    this.maxTokens = maxTokens;
-    this.temperature = temperature;
-    this.apiKey = process.env.OPENAI_API_KEY;
-    this.configuration = new Configuration({
-      apiKey: this.apiKey,
-    });
-    this.openai = new OpenAIApi(this.configuration);
-  }
-
-  async query(prompt) {
-    try {
-      const response = await this.openai.createCompletion({
-        model: this.model,
-        prompt: prompt,
-        max_tokens: this.maxTokens,
-        temperature: this.temperature,
-      });
-
-      // TODO: output [model-name] ..... [tokens] [cost] information
-
-      const result = {
-        response: response.data.choices[0].text.trim(),
-        uploadedTokenCount: Math.ceil(prompt.length / 4), // Simplified estimation
-        generatedTokenCount: Math.ceil(
-          response.data.choices[0].text.length / 4
-        ), // Simplified estimation
-        cost: this.calculateCost(response.data.usage.total_tokens),
-      };
-
-      return result;
-    } catch (error) {
-      console.error("Error querying OpenAI API:", error);
-      throw error;
+  constructor(
+    chatOptions = {
+      model: 'text-davinci-002',
+      max_tokens: 2048,
+      temperature: 0.7,
     }
+  ) {
+    this.c = chatOptions
+    if (http_proxy) L.log(`Using proxy: ${http_proxy}`)
+    this.q = got.extend({
+      prefixUrl: 'https://api.openai.com/v1/',
+      responseType: 'json',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      ...(http_proxy && {
+        agent: { https: new HttpsProxyAgent('http://192.168.110.127:7890') },
+      }),
+      hooks: {
+        beforeError: [
+          (error) => {
+            const { response } = error
+            if (response) {
+              error.message = `Request failed with status code ${
+                response.statusCode
+              }: ${
+                response.body?.error?.message ||
+                response.body?.error?.code ||
+                response.body
+              }`
+            }
+            return error
+          },
+        ],
+      },
+    })
   }
 
-  calculateCost(tokenCount) {
-    // Example cost calculation: \$0.002 per token
-    return (tokenCount * 0.002) / 1000;
+  async query(content) {
+    try {
+      // const response = await this.q.post('chat/completions', {
+      //   json: {
+      //     ...this.c,
+      //     messages: [{ role: 'user', content }],
+      //   },
+      // })
+
+      // return response.body
+
+      const q = await this.q.get('models')
+      L.log(q.body)
+    } catch (error) {
+      console.error('Error querying OpenAI API:', error)
+      throw 1
+    }
   }
 }
 
-export { OpenAIQuery };
+export { OpenAIQuery }
