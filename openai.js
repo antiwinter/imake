@@ -30,7 +30,7 @@ class OpenAIQuery {
       }),
       hooks: {
         beforeError: [
-          (error) => {
+          error => {
             const { response } = error
             if (response) {
               error.message = `Request failed with status code ${
@@ -50,17 +50,26 @@ class OpenAIQuery {
 
   async query(content) {
     try {
-      // const response = await this.q.post('chat/completions', {
-      //   json: {
-      //     ...this.c,
-      //     messages: [{ role: 'user', content }],
-      //   },
-      // })
+      L.log(`Querying: ${content}`)
+      const q = await this.q.post('chat/completions', {
+        json: {
+          ...this.c,
+          messages: [{ role: 'user', content }],
+        },
+      })
 
-      // return response.body
+      console.log(q.body, q.body.choices[0])
+      return q.body
+    } catch (error) {
+      console.error('Error querying OpenAI API:', error)
+      throw 1
+    }
+  }
 
+  async getModels() {
+    try {
       const q = await this.q.get('models')
-      L.log(q.body)
+      return q.body.data
     } catch (error) {
       console.error('Error querying OpenAI API:', error)
       throw 1

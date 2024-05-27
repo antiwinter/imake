@@ -3,6 +3,7 @@ import { join } from 'path'
 import { cwd } from 'process'
 import { Logger } from './logger.js'
 import { OpenAIQuery } from './openai.js'
+import { log } from 'console'
 
 const openAI = new OpenAIQuery(
   {
@@ -34,7 +35,6 @@ async function loadIgnores() {
       // Log error or handle it if needed
     }
   }
-  return ignores
 }
 
 async function loadDesc(p, d, t) {
@@ -46,7 +46,7 @@ async function loadDesc(p, d, t) {
     }
   } catch (err) {
     d.desc = await openAI.query(t)
-    L.log(`Generated desc for ${p}`)
+    L.log(`Generated desc for ${p}:\n${d.desc}`)
     // create prceeding folders if descPath if not exists
     await fs.mkdir(join(descPath, '..'), { recursive: true })
     await fs.writeFile(descPath, d.desc)
@@ -76,16 +76,19 @@ async function scan() {
   // Generate origin_doc string
   let text = ''
   let time = 0
-  await scanDirectory(join(cwd(), 'seed'), ignores, async (filePath, stats) => {
+  await scanDirectory(join(cwd(), 'seed'), async (filePath, stats) => {
+    console.log(filePath, stats.mtimeMs)
     if (filePath.endsWith('.md')) {
+      //   console.log(await fs.readFile(filePath, 'utf8'))
       time = Math.max(time, stats.mtimeMs)
       text +=
-        `DOC: ${path.basename(filePath)}\n\n` +
-        (await fs.readFile(filePath, 'utf8')) +
-        '\n'
+        `DOC: ${filePath}\n\n` + (await fs.readFile(filePath, 'utf8')) + '\n'
+    //   console.log(text)
     }
   })
 
+//   console.log('ttt', text)
+//   return
   db.$seed = { time, text }
   await loadDesc(
     'seed',
@@ -94,7 +97,7 @@ async function scan() {
   )
 
   // Save path of all code files
-  await scanDirectory(cwd(), ignores, async (filePath, stats) => {
+  await scanDirectory(cwd(), async (filePath, stats) => {
     if (filePath.match(/\.(js|ts|py|html|css|c|cpp|h|hpp|md)$/i)) {
       db[filePath] = {
         time: stats.mtimeMs,
