@@ -1,9 +1,8 @@
 import fs from 'fs/promises'
 import { join } from 'path'
 import { cwd } from 'process'
-import { Logger } from './logger.js'
+import { logger } from 'autils'
 import { OpenAIQuery } from './openai.js'
-import { log } from 'console'
 
 const openAI = new OpenAIQuery(
   {
@@ -14,7 +13,7 @@ const openAI = new OpenAIQuery(
   { host: '192.168.110.127', port: 7890 }
 )
 
-const L = new Logger('imk')
+const log = logger()
 const db = {}
 const ignores = []
 
@@ -46,7 +45,7 @@ async function loadDesc(p, d, t) {
     }
   } catch (err) {
     d.desc = await openAI.query(t)
-    L.log(`Generated desc for ${p}:\n${d.desc}`)
+    log(`Generated desc for ${p}:`, d.desc)
     // create prceeding folders if descPath if not exists
     await fs.mkdir(join(descPath, '..'), { recursive: true })
     await fs.writeFile(descPath, d.desc)
@@ -76,19 +75,19 @@ async function scan() {
   // Generate origin_doc string
   let text = ''
   let time = 0
-  await scanDirectory(join(cwd(), 'seed'), async (filePath, stats) => {
-    console.log(filePath, stats.mtimeMs)
+  await scanDirectory(join(cwd(), 'IDEAS'), async (filePath, stats) => {
+    log(filePath, stats.mtimeMs)
     if (filePath.endsWith('.md')) {
       //   console.log(await fs.readFile(filePath, 'utf8'))
       time = Math.max(time, stats.mtimeMs)
       text +=
         `DOC: ${filePath}\n\n` + (await fs.readFile(filePath, 'utf8')) + '\n'
-    //   console.log(text)
+      //   console.log(text)
     }
   })
 
-//   console.log('ttt', text)
-//   return
+  //   console.log('ttt', text)
+  //   return
   db.$seed = { time, text }
   await loadDesc(
     'seed',
@@ -118,4 +117,4 @@ async function scan() {
   })
 }
 
-scan().then(() => L.log('Scanning complete.'))
+scan().then(() => log('Scanning complete.'))

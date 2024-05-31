@@ -6,7 +6,7 @@ import {
   mkdirSync,
 } from 'fs'
 import path from 'path'
-import { Logger } from './logger.js'
+import { logger } from 'autils'
 import { OpenAIQuery } from './openai.js'
 
 const logger = new Logger('imk')
@@ -25,7 +25,7 @@ async function resume() {
 
 async function improveDocs(resumes, ignores) {
   const markdownFiles = readdirSync(process.cwd()).filter(
-    (file) => file.endsWith('.md') && !ignores.has(file)
+    file => file.endsWith('.md') && !ignores.has(file)
   )
 
   // fixme: using GPT4, use maximum tokens
@@ -39,7 +39,7 @@ async function improveDocs(resumes, ignores) {
   )
   const docs = '' // content of all docs
   // FIXME: if resumed, skip the already processed files
-  const improvePrompts = markdownFiles.map((file) => {
+  const improvePrompts = markdownFiles.map(file => {
     const content = readFileSync(path.join(process.cwd(), file), 'utf8')
     return openAI.query(`You're going to improve the content of ${file}
         according to the original design docs. improve the clarity and
@@ -73,7 +73,7 @@ async function improveDocs(resumes, ignores) {
   writeFileSync(summaryPath, summaryContent)
   logger.log('Document summary generated.')
 
-  return improvements.map((x) => {
+  return improvements.map(x => {
     ;`${x.response}\n\n`
   })
 }
@@ -90,10 +90,10 @@ async function genStructure(llm, docs, ignoredPaths) {
   const codeFileExtensions = /\.(js|ts|py|html|css|c|cpp|h|hpp)$/i
   const allFiles = readdirSync(process.cwd())
   const codeFiles = allFiles.filter(
-    (file) => file.match(codeFileExtensions) && !ignoredPaths.has(file)
+    file => file.match(codeFileExtensions) && !ignoredPaths.has(file)
   )
 
-  const fileContents = codeFiles.map((file) => ({
+  const fileContents = codeFiles.map(file => ({
     path: file,
     content: readFileSync(path.join(process.cwd(), file), 'utf8'),
   }))
@@ -102,7 +102,7 @@ async function genStructure(llm, docs, ignoredPaths) {
     along with detailed documentation: ${docs.join('\n\n')}
   Files and contents:
   ${fileContents
-    .map((f) => `File: ${f.path}\nContent:\n${f.content}`)
+    .map(f => `File: ${f.path}\nContent:\n${f.content}`)
     .join('\n\n')}
   Generate a refined project structure and provide summaries for each code file,
   including essential functions, classes, variables, and their relationships.
@@ -126,7 +126,7 @@ async function genStructure(llm, docs, ignoredPaths) {
     } else {
       const fullPath = path.join(outDir, filePath)
       const content = `/*\n${summary}\n*/\n\n${
-        fileContents.find((f) => f.path === filePath).content
+        fileContents.find(f => f.path === filePath).content
       }`
       writeFileSync(fullPath, content)
     }
@@ -146,11 +146,11 @@ async function make() {
   const ignoreFiles = ['.gitignore', '.imkignore']
   const ignoredPaths = new Set()
 
-  ignoreFiles.forEach((file) => {
+  ignoreFiles.forEach(file => {
     const ignoreFilePath = path.join(process.cwd(), file)
     if (existsSync(ignoreFilePath)) {
       const content = readFileSync(ignoreFilePath, 'utf8')
-      content.split('\n').forEach((line) => {
+      content.split('\n').forEach(line => {
         if (line.trim() && !line.startsWith('#')) {
           ignoredPaths.add(line.trim())
         }

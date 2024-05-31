@@ -1,12 +1,12 @@
 import got from 'got'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import dotenv from 'dotenv'
-import { Logger } from './logger.js'
+import { logger } from 'autils'
 
 dotenv.config()
 
 const { http_proxy } = process.env
-const L = new Logger('openai')
+const log = logger()
 
 class OpenAIQuery {
   constructor(
@@ -17,7 +17,7 @@ class OpenAIQuery {
     }
   ) {
     this.c = chatOptions
-    if (http_proxy) L.log(`Using proxy: ${http_proxy}`)
+    if (http_proxy) log(`Using proxy: ${http_proxy}`)
     this.q = got.extend({
       prefixUrl: 'https://api.openai.com/v1/',
       responseType: 'json',
@@ -50,7 +50,7 @@ class OpenAIQuery {
 
   async query(content) {
     try {
-      L.log(`Querying: ${content}`)
+      log(`Querying: ${content}`)
       const q = await this.q.post('chat/completions', {
         json: {
           ...this.c,
@@ -58,7 +58,7 @@ class OpenAIQuery {
         },
       })
 
-      console.log(q.body, q.body.choices[0])
+      log(q.body, q.body.choices[0])
       return q.body
     } catch (error) {
       console.error('Error querying OpenAI API:', error)
