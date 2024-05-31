@@ -2,17 +2,9 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import { cwd } from 'process'
 import { logger } from 'autils'
-import { OpenAIQuery } from './openai.js'
+import { createAgent, listModels } from './openai.js'
 
-const openAI = new OpenAIQuery(
-  {
-    model: 'gpt-4o-2024-05-13',
-    max_tokens: 2048,
-    temperature: 0.7,
-  },
-  { host: '192.168.110.127', port: 7890 }
-)
-
+const ag = createAgent()
 const log = logger()
 const db = {}
 const ignores = []
@@ -44,11 +36,11 @@ async function loadDesc(p, d, t) {
       d.desc = await fs.readFile(descPath, 'utf8')
     }
   } catch (err) {
-    d.desc = await openAI.query(t)
-    log(`Generated desc for ${p}:`, d.desc)
+    d.desc = await ag.query(t)
+    // log(`Generated desc for ${p}:`, d.desc)
     // create prceeding folders if descPath if not exists
-    await fs.mkdir(join(descPath, '..'), { recursive: true })
-    await fs.writeFile(descPath, d.desc)
+    // await fs.mkdir(join(descPath, '..'), { recursive: true })
+    // await fs.writeFile(descPath, d.desc)
   }
 }
 
@@ -95,6 +87,7 @@ async function scan() {
     `Generate a design document based on the following content:\n${text}`
   )
 
+  return
   // Save path of all code files
   await scanDirectory(cwd(), async (filePath, stats) => {
     if (filePath.match(/\.(js|ts|py|html|css|c|cpp|h|hpp|md)$/i)) {
@@ -117,4 +110,5 @@ async function scan() {
   })
 }
 
+log(await listModels())
 scan().then(() => log('Scanning complete.'))

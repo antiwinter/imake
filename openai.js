@@ -1,80 +1,48 @@
-import got from 'got'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import dotenv from 'dotenv'
 import { logger } from 'autils'
+import { OpenAI } from 'openai'
 
 dotenv.config()
 
-const { http_proxy } = process.env
 const log = logger()
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-class OpenAIQuery {
-  constructor(
-    chatOptions = {
-      model: 'text-davinci-002',
-      max_tokens: 2048,
-      temperature: 0.7,
-    }
-  ) {
-    this.c = chatOptions
-    if (http_proxy) log(`Using proxy: ${http_proxy}`)
-    this.q = got.extend({
-      prefixUrl: 'https://api.openai.com/v1/',
-      responseType: 'json',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      ...(http_proxy && {
-        agent: { https: new HttpsProxyAgent('http://192.168.110.127:7890') },
-      }),
-      hooks: {
-        beforeError: [
-          error => {
-            const { response } = error
-            if (response) {
-              error.message = `Request failed with status code ${
-                response.statusCode
-              }: ${
-                response.body?.error?.message ||
-                response.body?.error?.code ||
-                response.body
-              }`
-            }
-            return error
-          },
-        ],
-      },
-    })
-  }
+const { http_proxy } = process.env
+log(`Using proxy: ${http_proxy}`)
+const opt = { httpAgent: http_proxy && new HttpsProxyAgent(http_proxy) }
 
-  async query(content) {
-    try {
-      log(`Querying: ${content}`)
-      const q = await this.q.post('chat/completions', {
-        json: {
-          ...this.c,
+export function createAgent(
+  model = 'gpt-3.5-turbo',
+  max_tokens = 2048,
+  temperature = 0.7
+) {
+  let a = {
+    async query(content, cb) {
+      log('query:', content.length)
+      let q = await openai.chat.completions.create(
+        {
+          model,
           messages: [{ role: 'user', content }],
+          temperature,
+          max_tokens,
+          stream: true,
         },
-      })
+        opt
+      )
 
-      log(q.body, q.body.choices[0])
-      return q.body
-    } catch (error) {
-      console.error('Error querying OpenAI API:', error)
-      throw 1
-    }
+      for await (const c of q) {
+        let txt = c.choices[0]?.delta?.content || ''
+        log(txt)
+        if (cb) cb(txt)
+      }
+    },
   }
 
-  async getModels() {
-    try {
-      const q = await this.q.get('models')
-      return q.body.data
-    } catch (error) {
-      console.error('Error querying OpenAI API:', error)
-      throw 1
-    }
-  }
+  return a
 }
 
-export { OpenAIQuery }
+export async function listModels() {
+  log('listing')
+  return await openai.models.list(opt)
+}
