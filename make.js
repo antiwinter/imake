@@ -36,7 +36,16 @@ async function loadDesc(p, d, t) {
       d.desc = await fs.readFile(descPath, 'utf8')
     }
   } catch (err) {
-    d.desc = await ag.query(t)
+    d.desc = ''
+    let c = await ag.query(t, x => {
+      d.desc += x
+      process.stdout.write(x)
+    })
+
+    log()
+    log.good(c, 'tokens generated')
+    log(ag.estimate(t, d.desc))
+
     // log(`Generated desc for ${p}:`, d.desc)
     // create prceeding folders if descPath if not exists
     // await fs.mkdir(join(descPath, '..'), { recursive: true })

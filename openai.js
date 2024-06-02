@@ -2,6 +2,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent'
 import dotenv from 'dotenv'
 import { logger } from 'autils'
 import { OpenAI } from 'openai'
+import { get_encoding } from 'tiktoken'
 
 dotenv.config()
 
@@ -31,11 +32,23 @@ export function createAgent(
         opt
       )
 
+      let t = 0
       for await (const c of q) {
         let txt = c.choices[0]?.delta?.content || ''
-        log(txt)
+        // log(c.choices[0]?.delta, c)
+        t++
         if (cb) cb(txt)
       }
+
+      return t
+    },
+    estimate(i, o) {
+      // calculate the estimated cost
+      let e = get_encoding('gpt2')
+      i = e.encode(i).length
+      o = e.encode(o).length
+      let cost = (i * 5 + o * 15) / 1000000
+      return { i, o, cost }
     },
   }
 
